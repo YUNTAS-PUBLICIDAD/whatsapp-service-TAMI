@@ -12,13 +12,15 @@ import {
   getReconnectionStatus,
   sendMessageWithImage,
   sendMessageAccept,
-  sendMessageReject
+  sendMessageReject,
+  sendProductInfo
 } from '../controllers/message.controller.js';
 import { 
   validateSendMessage, 
   validateSendImage, 
   validateSendMessageAccept, 
-  validateSendMessageReject 
+  validateSendMessageReject,
+  validateSendProductInfo 
 } from '../validators/message.validator.js';
 import { authenticateJWT, authorizeRole } from '../middlewares/auth.middleware.js';
 import { Router } from 'express';
@@ -29,6 +31,7 @@ router.post('/send-message', authenticateJWT, authorizeRole('admin'), validateSe
 router.post('/send-message-accept', validateSendMessageAccept, sendMessageAccept);
 router.post('/send-message-reject', validateSendMessageReject, sendMessageReject);
 router.get('/sent-messages', authenticateJWT, authorizeRole('admin'), getSentMessages);
+router.post('/send-product-info', validateSendProductInfo, sendProductInfo);
 router.get('/qr-code', authenticateJWT, authorizeRole('admin'), getQrCode);
 router.post('/send-image', validateSendImage, sendMessageWithImage);
 router.get('/status', authenticateJWT, getStatus);
