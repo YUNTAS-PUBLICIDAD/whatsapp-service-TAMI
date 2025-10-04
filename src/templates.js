@@ -114,3 +114,34 @@ ${comentario ? `💬 Comentario del administrador:
 
 ¡Estamos aquí para ayudarte a resolverlo! 🤝`;
 }
+
+export function getProductDetailsTemplate(params = {}) {
+  const {
+    productName = '',
+    description = '',
+    email = '',
+  } = params;
+
+  return `📢 Bienvenido a Tami Maquinarias 📢
+
+Gracias por su interés en nuestros productos. A continuación, le proporcionamos los detalles del producto que ha consultado:
+
+📝 Producto Consultado:
+    • Nombre del Producto: ${productName}  
+    • Descripción: ${description}  
+
+📅 Fecha y Hora de Consulta:  
+    • Fecha: ${new Date().toLocaleDateString('es-ES')}  
+    • Hora: ${new Date().toLocaleTimeString('es-ES')}  
+
+📧 Información Adicional:  
+Le informamos que en breve recibirá un correo electrónico a ${email} con más detalles sobre el producto consultado. Le recomendamos revisar su bandeja de entrada.
+
+Si tiene alguna otra consulta o desea más información, no dude en contactarnos.
+
+¡Gracias por elegirnos!
+
+Atentamente,  
+Yuntas Publicidad  
+  `;
+}

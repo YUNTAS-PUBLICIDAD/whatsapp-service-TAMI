@@ -1,6 +1,6 @@
 import { makeWASocket, useMultiFileAuthState, makeCacheableSignalKeyStore } from '@whiskeysockets/baileys';
 import QRCode from 'qrcode';
-import { getTemplate } from '../templates.js';
+import { getTemplate, getProductDetailsTemplate } from '../templates.js';
 import logger from '../utils/logger.js';
 import { emitQrStatusUpdate } from '../app.js';
 import { getWhatsAppConfig } from '../config/whatsapp.config.js';
@@ -727,6 +727,129 @@ export default {
     try {
       const captionText = caption || 'Imagen enviada';
       logger.info('Enviando mensaje con imagen WhatsApp', {
+        phone: formattedPhone,
+        imageSize: imageBuffer.length,
+        captionLength: captionText.length
+      });
+
+      // Preparar mensaje con imagen
+      const messageOptions = {
+        image: imageBuffer,
+        caption: captionText,
+        jpegThumbnail: null,
+      };
+
+      const result = await connectionState.socket.sendMessage(formattedPhone, messageOptions);
+
+      logger.info('Mensaje enviado exitosamente', {
+        phone: formattedPhone,
+        messageId: result.key.id,
+        timestamp: new Date().toISOString()
+      });
+
+      const sentMessage = {
+        phone: formattedPhone,
+        messageId: result.key.id,
+        sentAt: new Date().toISOString(),
+        messagePreview: captionText.substring(0, 100) + (captionText.length > 100 ? '...' : ''),
+        type: 'image',
+        imageSize: imageBuffer.length,
+        status: 'sent'
+      };
+
+      connectionState.sentMessages.push(sentMessage);
+
+      const config = getWhatsAppConfig();
+      if (connectionState.sentMessages.length > (config.messages?.maxHistorySize || 100)) {
+        connectionState.sentMessages = connectionState.sentMessages.slice(-(config.messages?.maxHistorySize || 100));
+      }
+
+      return {
+        success: true,
+        messageId: result.key.id,
+        phone: formattedPhone,
+        sentAt: new Date().toISOString(),
+        messagePreview: captionText.substring(0, 100) + (captionText.length > 100 ? '...' : ''),
+        type: 'image',
+        imageSize: imageBuffer.length
+      };
+
+    } catch (error) {
+      logger.error('Error enviando mensaje WhatsApp', {
+        phone: formattedPhone,
+        error: error.message,
+        stack: error.stack
+      });
+
+      if (error.message.includes('disconnected')) {
+        await cleanupConnection();
+        throw new Error('Conexión perdida con WhatsApp. Por favor, escanea el código QR nuevamente.');
+      }
+
+      if (error.message.includes('not-authorized')) {
+        throw new Error('No tienes autorización para enviar mensajes a este número.');
+      }
+
+      if (error.message.includes('forbidden')) {
+        throw new Error('No se puede enviar mensajes a este número. Verifica que el número sea válido.');
+      }
+
+      if (error.message.includes('rate limit')) {
+        throw new Error('Límite de mensajes alcanzado. Espera un momento antes de enviar más mensajes.');
+      }
+
+      throw new Error(`Error al enviar mensaje: ${error.message}`);
+    }
+  },
+
+  async sendProductInfo({ productName, description, email, phone, imageData }) {
+    if (!connectionState.socket?.user) {
+      throw new Error('No conectado a WhatsApp. Por favor, escanea el código QR primero.');
+    }
+
+    const cleanPhone = phone.replace(/\D/g, '');
+    if (cleanPhone.length < 10 || cleanPhone.length > 15) {
+      throw new Error('El número de teléfono debe tener entre 10 y 15 dígitos');
+    }
+
+    const formattedPhone = `${cleanPhone}@s.whatsapp.net`;
+
+    // Validar datos de imagen
+    if (!imageData) {
+      throw new Error('Los datos de la imagen son requeridos');
+    }
+
+    const messageText = getProductDetailsTemplate({
+      productName,
+      description,
+      email,
+    });
+
+    if (!messageText) {
+      throw new Error('Plantilla de mensaje no válida');
+    }
+
+    let imageBuffer;
+    try {
+      // Remover prefijo data:image si existe
+      const base64Data = imageData.replace(/^data:image\/[a-z]+;base64,/, '');
+      imageBuffer = Buffer.from(base64Data, 'base64');
+
+      // Validar tamaño de imagen (máximo 16MB para WhatsApp)
+      const maxSize = 16 * 1024 * 1024; // 16MB
+      if (imageBuffer.length > maxSize) {
+        throw new Error('La imagen es demasiado grande. El tamaño máximo es 16MB');
+      }
+    } catch (error) {
+      throw new Error('Formato de imagen base64 inválido');
+    }
+
+    try {
+      const captionText = messageText || 'Imagen enviada';
+      logger.info('Enviando mensaje con imagen WhatsApp', {
+        productName,
+        description,
+        email,
         phone: formattedPhone,
         imageSize: imageBuffer.length,
         captionLength: captionText.length

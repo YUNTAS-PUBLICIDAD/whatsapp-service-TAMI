@@ -593,3 +593,47 @@ export async function sendMessageReject(req, res) {
     });
   }
 }
+
+export async function sendProductInfo(req, res) {
+  try {
+    const { productName, description, email, phone, imageData } = req.body;
+
+    // Validaciones adicionales
+    if (!productName || !description || !email || !phone || !imageData) {
+      return res.status(400).json({
+        success: false,
+        message: "Faltan campos requeridos",
+        required: ["productName", "description", "email", "phone", "imageData"],
+      });
+    }
+
+    // Validar formato del teléfono
+    const cleanPhone = phone.replace(/\D/g, '');
+    if (cleanPhone.length < 10 || cleanPhone.length > 15) {
+      return res.status(400).json({
+        success: false,
+        message: "El número de teléfono debe tener entre 10 y 15 dígitos",
+      });
+    }
+
+    const result = await whatsappService.sendProductInfo({
+      productName,
+      description,
+      email,
+      phone,
+      imageData,
+    });
+
+    res.json({
+      success: true,
+      ...result,
+    });
+  } catch (error) {
+    console.error("Error en sendProductInfo:", error);
+    res.status(500).json({
+      success: false,
+      message: error.message,
+      timestamp: new Date().toISOString(),
+    });
+  }
+}
