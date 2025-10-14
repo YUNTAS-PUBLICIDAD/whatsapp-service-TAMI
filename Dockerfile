@@ -1,7 +1,7 @@
 FROM node:22-alpine
 
 WORKDIR /app
-
+RUN apk update && apk add git
 COPY package*.json ./
 RUN npm install --production
 
