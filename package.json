@@ -16,8 +16,7 @@
     "pm2:stop": "pm2 stop whatsapp-service",
     "pm2:restart": "pm2 restart whatsapp-service",
     "pm2:logs": "pm2 logs whatsapp-service",
-    "pm2:status": "pm2 status",
-    "postinstall": "node scripts/updateBaileysVersion.js"
+    "pm2:status": "pm2 status"
   },
   "keywords": [],
   "author": "",
