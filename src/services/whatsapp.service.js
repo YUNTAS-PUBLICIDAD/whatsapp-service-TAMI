@@ -5,12 +5,22 @@ import logger from '../utils/logger.js';
 import { emitQrStatusUpdate } from '../app.js';
 import { getWhatsAppConfig } from '../config/whatsapp.config.js';
 
+import {
+  getPeruDate,
+  getPeruISOString,
+  getPeruDateTimeFormatted
+} from '../utils/datePeru.js';
+
+
+
+const { fecha, hora } = getPeruDateTimeFormatted();
+
 // Manejo de errores global para evitar que el proceso se cierre
 process.on('uncaughtException', (error) => {
   logger.error('Uncaught Exception:', {
     error: error.message,
     stack: error.stack,
-    timestamp: new Date().toISOString()
+    timestamp: getPeruISOString()
   });
 
   // No cerrar el proceso, solo loggear el error
@@ -21,7 +31,7 @@ process.on('unhandledRejection', (reason, promise) => {
   logger.error('Unhandled Rejection:', {
     reason: reason?.message || reason,
     promise: promise,
-    timestamp: new Date().toISOString()
+    timestamp: getPeruISOString()
   });
 
   // No cerrar el proceso, solo loggear el error
@@ -98,7 +108,7 @@ function getQRStatus() {
       reconnectAttempts: connectionState.reconnectAttempts,
       isReconnecting: connectionState.isReconnecting
     },
-    lastUpdated: new Date().toISOString()
+    lastUpdated: getPeruISOString()
   };
 }
 
@@ -111,7 +121,7 @@ async function generateQRFromUpdate(qrString) {
     connectionState.qrData = {
       image: qrResult.image,
       expiresAt: Date.now() + (60000 * 2), // 2 minutos
-      createdAt: new Date().toISOString(),
+      createdAt: getPeruISOString(),
       qrString: qrString,
       format: qrResult.format,
       size: qrResult.size,
@@ -166,7 +176,7 @@ async function generateNewQR(session) {
                   connectionState.qrData = {
                     image: qrResult.image,
                     expiresAt: Date.now() + (config.qr?.expirationTime || 120000),
-                    createdAt: new Date().toISOString(),
+                    createdAt: getPeruISOString(),
                     qrString: update.qr,
                     format: qrResult.format,
                     size: qrResult.size,
@@ -633,7 +643,7 @@ export default {
       logger.info('Mensaje enviado exitosamente', {
         phone: formattedPhone,
         messageId: result.key.id,
-        timestamp: new Date().toISOString()
+        timestamp: getPeruISOString()
       });
 
       const sentMessage = {
@@ -643,7 +653,7 @@ export default {
         fecha,
         hora,
         messageId: result.key.id,
-        sentAt: new Date().toISOString(),
+        sentAt: getPeruISOString(),
         messagePreview: messageText.substring(0, 100) + (messageText.length > 100 ? '...' : ''),
         status: 'sent'
       };
@@ -660,7 +670,7 @@ export default {
         messageId: result.key.id,
         phone: formattedPhone,
         template: templateOption,
-        sentAt: new Date().toISOString(),
+        sentAt: getPeruISOString(),
         messagePreview: messageText.substring(0, 100) + (messageText.length > 100 ? '...' : '')
       };
 
@@ -744,13 +754,13 @@ export default {
       logger.info('Mensaje enviado exitosamente', {
         phone: formattedPhone,
         messageId: result.key.id,
-        timestamp: new Date().toISOString()
+        timestamp: getPeruISOString()
       });
 
       const sentMessage = {
         phone: formattedPhone,
         messageId: result.key.id,
-        sentAt: new Date().toISOString(),
+        sentAt: getPeruISOString(),
         messagePreview: captionText.substring(0, 100) + (captionText.length > 100 ? '...' : ''),
         type: 'image',
         imageSize: imageBuffer.length,
@@ -768,7 +778,7 @@ export default {
         success: true,
         messageId: result.key.id,
         phone: formattedPhone,
-        sentAt: new Date().toISOString(),
+        sentAt: getPeruISOString(),
         messagePreview: captionText.substring(0, 100) + (captionText.length > 100 ? '...' : ''),
         type: 'image',
         imageSize: imageBuffer.length
@@ -823,6 +833,8 @@ export default {
       productName,
       description,
       email,
+      fecha,
+      hora
     });
 
     if (!messageText) {
@@ -867,13 +879,13 @@ export default {
       logger.info('Mensaje enviado exitosamente', {
         phone: formattedPhone,
         messageId: result.key.id,
-        timestamp: new Date().toISOString()
+        timestamp: getPeruISOString()
       });
 
       const sentMessage = {
         phone: formattedPhone,
         messageId: result.key.id,
-        sentAt: new Date().toISOString(),
+        sentAt: getPeruISOString(),
         messagePreview: captionText.substring(0, 100) + (captionText.length > 100 ? '...' : ''),
         type: 'image',
         imageSize: imageBuffer.length,
@@ -891,7 +903,7 @@ export default {
         success: true,
         messageId: result.key.id,
         phone: formattedPhone,
-        sentAt: new Date().toISOString(),
+        sentAt: getPeruISOString(),
         messagePreview: captionText.substring(0, 100) + (captionText.length > 100 ? '...' : ''),
         type: 'image',
         imageSize: imageBuffer.length
@@ -1176,7 +1188,7 @@ export default {
         type: type,
         useTemplate: useTemplate,
         messageId: result.key.id,
-        timestamp: new Date().toISOString()
+        timestamp: getPeruISOString()
       });
 
       const sentMessage = {
@@ -1186,7 +1198,7 @@ export default {
         finalMessage: finalMessage, // Guardar el mensaje final con template
         useTemplate: useTemplate,
         messageId: result.key.id,
-        sentAt: new Date().toISOString(),
+        sentAt: getPeruISOString(),
         messagePreview: finalMessage.substring(0, 100) + (finalMessage.length > 100 ? '...' : ''),
         status: 'sent'
       };
@@ -1204,7 +1216,7 @@ export default {
         phone: formattedPhone,
         type: type,
         useTemplate: useTemplate,
-        sentAt: new Date().toISOString(),
+        sentAt: getPeruISOString(),
         messagePreview: finalMessage.substring(0, 100) + (finalMessage.length > 100 ? '...' : ''),
         originalComment: message
       };
