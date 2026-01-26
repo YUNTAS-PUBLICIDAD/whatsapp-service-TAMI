@@ -31,3 +31,4 @@ coverage/
 # Otros archivos temporales
 tmp/
 temp/
+.wwebjs_cache/
