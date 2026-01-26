@@ -30,7 +30,7 @@ export function authenticateJWT(req, res, next) {
   } else {
     res.status(401).json({ 
       success: false, 
-      message: 'hola activo fa' 
+      message: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaa' 
     });
   }
 }
