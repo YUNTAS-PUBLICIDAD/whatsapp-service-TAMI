@@ -235,6 +235,8 @@ app.get('/api/whatsapp/status', (req, res) => {
     });
   }
 });
+// 🔒 middleware DESPUÉS
+app.use('/api', authMiddleware);
 
 // se solicita un nuevo QR
 app.post('/api/whatsapp/request-qr', async (req, res) => {
