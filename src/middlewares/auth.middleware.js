@@ -30,7 +30,7 @@ export function authenticateJWT(req, res, next) {
   } else {
     res.status(401).json({ 
       success: false, 
-      message: 'Token no proporcionado' 
+      message: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaa' 
     });
   }
 }
