@@ -96,7 +96,8 @@ app.post('/send-message', async (req, res) => {
 app.get('/status', (req, res) => {
   res.json({
     connected: isConnected,
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
+    message: 'Servidor activo',
   });
 });
 
