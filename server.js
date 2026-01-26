@@ -209,20 +209,29 @@ async function validateWhatsAppNumber(numberId, skipValidation = false, chatId =
 // para ver el estado de la conexion y el QR
 app.get('/api/whatsapp/status', (req, res) => {
   try {
-    res.json({
+    const status = isReady
+      ? 'connected'
+      : currentQR
+        ? 'qr-ready'
+        : 'disconnected';
+
+    res.status(200).json({
+      success: true,
       isConnected: isReady,
-      hasActiveQR: !!currentQR,
-      qrData: currentQR ? {
+      status,
+      qr: currentQR ? {
         image: currentQR,
-        expiresAt: Date.now() + 60000
-      } : null,
-      connectionStatus: isReady ? 'connected' : (currentQR ? 'qr-ready' : 'disconnected')
+        expiresAt: Date.now() + 60 * 1000
+      } : null
     });
   } catch (error) {
-    logger.error('Error al obtener estado de WhatsApp', { error: error.message });
+    logger.error('Error al obtener estado de WhatsApp', {
+      error: error.message
+    });
+
     res.status(500).json({
       success: false,
-      message: 'Error al obtener el estado'
+      message: 'Error al obtener el estado de WhatsApp'
     });
   }
 });
