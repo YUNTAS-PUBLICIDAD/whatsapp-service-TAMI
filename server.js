@@ -44,7 +44,12 @@ const logger = winston.createLogger({
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server, {
-  cors: { origin: ALLOWED_ORIGINS }
+  cors: {
+    origin: ALLOWED_ORIGINS,
+    methods: ['GET', 'POST'],
+    credentials: true
+  },
+  transports: ['websocket', 'polling']
 });
 
 let activeSocketConnections = 0;
@@ -75,7 +80,17 @@ const sendImageLimiter = rateLimit({
   legacyHeaders: false
 });
 
-app.use(cors({ origin: ALLOWED_ORIGINS }));
+app.use(cors({
+  origin: (origin, callback) => {
+    if (!origin || ALLOWED_ORIGINS.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  methods: ['GET', 'POST'],
+  credentials: true
+}));
 app.use(express.json({ limit: '10mb' }));
 app.use(generalLimiter);
 
@@ -129,16 +144,23 @@ function initWhatsApp() {
   });
 
   // WhatsApp conectado
-  whatsappClient.on('ready', () => {
-    logger.info('Cliente de WhatsApp listo');
-    isReady = true;
-    currentQR = null;
+whatsappClient.on('ready', async () => {
+  isReady = true;
+  currentQR = null;
 
-    io.emit('qr-update', {
-      connectionStatus: 'connected',
-      qrData: null
-    });
+  const info = whatsappClient.info;
+  const phoneNumber = info?.wid?.user || 'desconocido';
+
+  logger.info('Cliente de WhatsApp listo', {
+    phone: phoneNumber
   });
+
+  io.emit('qr-update', {
+    connectionStatus: 'connected',
+    phone: phoneNumber,
+    qrData: null
+  });
+});
 
   // Desconectado
   whatsappClient.on('disconnected', (reason) => {
@@ -312,7 +334,7 @@ app.post('/api/whatsapp/send-message', sendMessageLimiter, async (req, res) => {
 });
 
 // se envia un mensaje con imagen
-app.post('/api/send-product-info', sendImageLimiter, async (req, res) => {
+app.post('/api/whatsapp/send-product-info', sendImageLimiter, async (req, res) => {
   try {
     if (!isReady) {
       return res.status(400).json({
