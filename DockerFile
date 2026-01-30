@@ -1,13 +1,26 @@
-FROM node:22-alpine
+FROM node:18-alpine
+
+# dependencias de Chromium
+RUN apk add --no-cache \
+    chromium \
+    nss \
+    freetype \
+    harfbuzz \
+    ca-certificates \
+    ttf-freefont
+
+ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true \
+    PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser
 
 WORKDIR /app
-RUN apk update && apk add git
+
 COPY package*.json ./
-RUN npm install --production
+RUN npm ci --only=production
 
 COPY . .
 
-# Expone el puerto definido en .env o por defecto 5111
-EXPOSE 5111
+RUN mkdir -p /app/logs /app/auth_info
 
-CMD ["node", "index.js"]
+EXPOSE 3001
+
+CMD ["node", "server.js"]
