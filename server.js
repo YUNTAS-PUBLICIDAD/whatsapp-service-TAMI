@@ -48,7 +48,7 @@ const io = new Server(server, {
 });
 
 let activeSocketConnections = 0;
-const MAX_SOCKET_CONNECTIONS = 2; // conexiones maximas
+const MAX_SOCKET_CONNECTIONS = 10; // conexiones maximas
 
 // Rate limiters
 const generalLimiter = rateLimit({
