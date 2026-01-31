@@ -237,6 +237,17 @@ class WhatsAppService {
                 this.sock = null;
             }
 
+            // Limpiar estado
+            this.currentQR = null;
+            this.isReady = false;
+            clearTimeout(this.qrTimeout);
+
+            this.emitQRUpdate({
+                connectionStatus: 'disconnected',
+                qrData: null
+            });
+
+            // Esperar antes de eliminar archivos
             await new Promise(resolve => setTimeout(resolve, 1000));
 
             if (fs.existsSync(WHATSAPP_CONFIG.authPath)) {
@@ -249,17 +260,15 @@ class WhatsAppService {
                 }
             }
 
-            this.currentQR = null;
-            this.isReady = false;
-
-            this.emitQRUpdate({
-                connectionStatus: 'disconnected',
-                qrData: null
-            });
-
             this.isInitializing = false;
 
-            logger.info('Sesión reseteada correctamente');
+            logger.info('Sesión reseteada correctamente, reinicializando...');
+
+            // Esperar un poco antes de reinicializar
+            await new Promise(resolve => setTimeout(resolve, 1000));
+
+            await this.initialize();
+
             return true;
         } catch (error) {
             this.isInitializing = false;
