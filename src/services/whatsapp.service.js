@@ -66,7 +66,7 @@ class WhatsAppService {
                     creds: state.creds,
                     keys: makeCacheableSignalKeyStore(state.keys, pino({ level: 'silent' }))
                 },
-                browser: ['Tami Maquinarias', 'Chrome', '120.0.0'],
+                browser: [WHATSAPP_CONFIG.sessionName, 'Chrome', '120.0.0'],
                 generateHighQualityLinkPreview: true,
                 syncFullHistory: false,
                 markOnlineOnConnect: false
