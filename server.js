@@ -16,6 +16,7 @@ const io = new Server(server, {
 
 let activeSocketConnections = 0;
 
+app.set('trust proxy', 1);
 app.use(cors({ origin: ALLOWED_ORIGINS }));
 app.use(express.json({ limit: '10mb' }));
 

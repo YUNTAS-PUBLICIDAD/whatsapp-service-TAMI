@@ -207,7 +207,7 @@ class WhatsAppService {
 
             const result = await this.sock.sendMessage(jid, message);
 
-            logger.info('Mensaje enviado', { jid});
+            logger.info('Mensaje enviado', { jid });
             return {
                 success: true,
                 messageId: result.key.id,
@@ -237,8 +237,16 @@ class WhatsAppService {
                 this.sock = null;
             }
 
+            await new Promise(resolve => setTimeout(resolve, 1000));
+
             if (fs.existsSync(WHATSAPP_CONFIG.authPath)) {
-                fs.rmSync(WHATSAPP_CONFIG.authPath, { recursive: true, force: true });
+                try {
+                    fs.rmSync(WHATSAPP_CONFIG.authPath, { recursive: true, force: true });
+                } catch (error) {
+                    logger.warn('Error al eliminar auth_info, reintentando...', { error: error.message });
+                    await new Promise(resolve => setTimeout(resolve, 2000));
+                    fs.rmSync(WHATSAPP_CONFIG.authPath, { recursive: true, force: true });
+                }
             }
 
             this.currentQR = null;
