@@ -106,7 +106,7 @@ class WhatsAppService {
                 ? lastDisconnect.error.output.statusCode !== DisconnectReason.loggedOut
                 : true;
 
-            logger.warn('Conexión cerrada (es normal la primera vez)', {
+            logger.warn('Conexión cerrada (esto pasa a veces)', {
                 reason: lastDisconnect?.error?.message,
                 shouldReconnect
             });
