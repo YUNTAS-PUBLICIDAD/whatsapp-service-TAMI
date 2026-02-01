@@ -231,16 +231,7 @@ class WhatsAppService {
 
             this.isInitializing = true;
 
-            if (this.sock) {
-                this.sock.ev.removeAllListeners();
-                await this.sock.logout();
-                this.sock = null;
-            }
-
-            // Limpiar estado
-            this.currentQR = null;
-            this.isReady = false;
-            clearTimeout(this.qrTimeout);
+            await this.destroy(); // destruir recursos y cliente existente
 
             this.emitQRUpdate({
                 connectionStatus: 'disconnected',
