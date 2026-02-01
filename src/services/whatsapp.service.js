@@ -252,22 +252,31 @@ class WhatsAppService {
 
             if (fs.existsSync(WHATSAPP_CONFIG.authPath)) {
                 try {
-                    fs.rmSync(WHATSAPP_CONFIG.authPath, { recursive: true, force: true });
+                    const files = fs.readdirSync(WHATSAPP_CONFIG.authPath);
+                    for (const file of files) {
+                        const filePath = `${WHATSAPP_CONFIG.authPath}/${file}`;
+                        fs.rmSync(filePath, { recursive: true, force: true });
+                    }
                 } catch (error) {
-                    logger.warn('Error al eliminar auth_info, reintentando...', { error: error.message });
-                    await new Promise(resolve => setTimeout(resolve, 2000));
-                    fs.rmSync(WHATSAPP_CONFIG.authPath, { recursive: true, force: true });
+                    logger.warn('Error al eliminar contenido de auth_info, reintentando...', { error: error.message });
+                    await new Promise(resolve => setTimeout(resolve, 1000));
+
+                    const files = fs.readdirSync(WHATSAPP_CONFIG.authPath);
+                    for (const file of files) {
+                        const filePath = `${WHATSAPP_CONFIG.authPath}/${file}`;
+                        fs.rmSync(filePath, { recursive: true, force: true });
+                    }
                 }
             }
 
             this.isInitializing = false;
 
-            logger.info('Sesión reseteada correctamente, reinicializando...');
+            /* logger.info('Sesión reseteada correctamente, reinicializando...');
 
             // Esperar un poco antes de reinicializar
             await new Promise(resolve => setTimeout(resolve, 1000));
 
-            await this.initialize();
+            await this.initialize(); */
 
             return true;
         } catch (error) {
