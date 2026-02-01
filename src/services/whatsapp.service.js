@@ -262,17 +262,18 @@ class WhatsAppService {
 
             this.isInitializing = false;
 
-            /* logger.info('Sesión reseteada correctamente, reinicializando...');
-
-            // Esperar un poco antes de reinicializar
-            await new Promise(resolve => setTimeout(resolve, 1000));
-
-            await this.initialize(); */
-
             return true;
         } catch (error) {
             this.isInitializing = false;
             logger.error('Error al resetear sesión', { error: error.message });
+
+            // Intentar inicializar
+            try {
+                await this.initialize();
+            } catch (initError) {
+                logger.error('Error al reinicializar después de fallo', { error: initError.message });
+            }
+
             throw error;
         }
     }
