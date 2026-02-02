@@ -261,6 +261,8 @@ class WhatsAppService {
             }
 
             this.isInitializing = false;
+            
+            logger.info('Sesión reseteada exitosamente');
 
             return true;
         } catch (error) {
