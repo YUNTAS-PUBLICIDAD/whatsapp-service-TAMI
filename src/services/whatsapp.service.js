@@ -135,7 +135,14 @@ class WhatsAppService {
                             fs.rmSync(filePath, { recursive: true, force: true });
                         }
                     } catch (error) {
-                        logger.error('Error al eliminar archivos de sesión', { error: error.message });
+                        logger.warn('Error al eliminar contenido de auth_info, reintentando...', { error: error.message });
+                        await new Promise(resolve => setTimeout(resolve, 1000));
+
+                        const files = fs.readdirSync(WHATSAPP_CONFIG.authPath);
+                        for (const file of files) {
+                            const filePath = `${WHATSAPP_CONFIG.authPath}/${file}`;
+                            fs.rmSync(filePath, { recursive: true, force: true });
+                        }
                     }
                 }
             }
