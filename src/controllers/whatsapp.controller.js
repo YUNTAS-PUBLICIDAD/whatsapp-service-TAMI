@@ -3,6 +3,26 @@ import logger from '../services/logger.service.js';
 import { getProductDetailsTemplate } from '../../templates.js';
 import { WHATSAPP_CONFIG } from '../config/constants.js';
 
+// NO importar mysql aquí arriba
+let pool = null;
+
+// Función para obtener la conexión solo cuando se necesite
+async function getDbPool() {
+    if (!pool) {
+        const mysql = await import('mysql2/promise');
+        pool = mysql.default.createPool({
+            host: '82.197.82.125',
+            user: 'u268804017_tamiusr',
+            password: 'DatabaseTami4',
+            database: 'u268804017_tamidb',
+            waitForConnections: true,
+            connectionLimit: 10,
+            queueLimit: 0
+        });
+    }
+    return pool;
+}
+
 /**
  * Obtiene el estado de la conexión de WhatsApp y el QR
  */
@@ -176,16 +196,64 @@ export async function sendProductInfo(req, res) {
             imageBuffer = Buffer.from(imageData, 'base64');
         }
 
-        // Generar caption
-        const caption = getProductDetailsTemplate({
-            productName,
-            description,
-            phone,
-            email
-        });
+        // --- BLOQUE NUEVO: OBTENER Y PROCESAR TEXTO DINÁMICO ---
+        let finalCaption = "";
+        
+        try {
+            // Obtener el pool de conexiones solo cuando se necesita
+            const dbPool = await getDbPool();
+            
+            // 1. Buscamos el texto en la tabla
+            const [rows] = await dbPool.execute(
+                'SELECT content FROM whatsapp_templates WHERE name = ?',
+                ['product_details']
+            );
 
-        // Enviar imagen
-        const result = await whatsappService.sendImage(jid, imageBuffer, caption);
+            if (rows.length > 0) {
+                const templateText = rows[0].content;
+                const now = new Date();
+
+                // 2. Definimos las variables que el usuario puede usar en el panel admin
+                const variables = {
+                    productName: productName,
+                    description: description,
+                    email: email,
+                    phone: phone,
+                    fecha: now.toLocaleDateString('es-PE', { timeZone: 'America/Lima' }),
+                    hora: now.toLocaleTimeString('es-PE', { 
+                        timeZone: 'America/Lima', 
+                        hour: '2-digit', 
+                        minute: '2-digit' 
+                    })
+                };
+
+                // 3. Reemplazamos {{variable}} por el valor real
+                finalCaption = templateText.replace(/{{(\w+)}}/g, (match, key) => {
+                    return variables[key] || match;
+                });
+            } else {
+                // Si por alguna razón no hay nada en la DB, usar template por defecto
+                finalCaption = getProductDetailsTemplate({
+                    productName,
+                    description,
+                    phone,
+                    email
+                });
+            }
+        } catch (dbError) {
+            // Si hay error con la DB, usar template por defecto como fallback
+            logger.error('Error al obtener template de DB', { error: dbError.message });
+            finalCaption = getProductDetailsTemplate({
+                productName,
+                description,
+                phone,
+                email
+            });
+        }
+        // --- FIN DEL BLOQUE NUEVO ---
+
+        // Enviar imagen con el caption dinámico
+        const result = await whatsappService.sendImage(jid, imageBuffer, finalCaption);
 
         res.json(result);
     } catch (error) {
