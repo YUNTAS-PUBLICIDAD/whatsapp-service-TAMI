@@ -4,12 +4,15 @@ import logger from '../services/logger.service.js';
 import { getProductDetailsTemplate } from '../../templates.js';
 import { WHATSAPP_CONFIG } from '../config/constants.js';
 
-// Configuración de la conexión a la base de datos
-const db = await mysql.createConnection({
+// Crear un pool de conexiones en lugar de una conexión directa
+const pool = mysql.createPool({
     host: '82.197.82.125',
     user: 'u268804017_tamiusr',
     password: 'DatabaseTami4',
-    database: 'u268804017_tamidb'
+    database: 'u268804017_tamidb',
+    waitForConnections: true,
+    connectionLimit: 10,
+    queueLimit: 0
 });
 
 /**
@@ -189,8 +192,8 @@ export async function sendProductInfo(req, res) {
         let finalCaption = "";
         
         try {
-            // 1. Buscamos el texto en la tabla que creamos
-            const [rows] = await db.execute(
+            // 1. Buscamos el texto en la tabla usando el pool
+            const [rows] = await pool.execute(
                 'SELECT content FROM whatsapp_templates WHERE name = ?',
                 ['product_details']
             );
