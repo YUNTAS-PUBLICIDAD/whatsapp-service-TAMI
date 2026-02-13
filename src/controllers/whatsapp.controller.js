@@ -92,7 +92,8 @@ export async function sendProductInfo(req, res) {
             });
         }
 
-        const { productName, description, phone, email, imageData } = req.body;
+        // ✅ CAMBIO: Ahora recibimos productoId en lugar de solo productName
+        const { productName, description, phone, email, imageData, productoId } = req.body;
         let newPhone = phone.replace('+', '').replace(' ', '');
 
         // Validar número
@@ -196,50 +197,60 @@ export async function sendProductInfo(req, res) {
             imageBuffer = Buffer.from(imageData, 'base64');
         }
 
-        // --- BLOQUE NUEVO: OBTENER Y PROCESAR TEXTO DINÁMICO ---
+        // --- ✅ BLOQUE ACTUALIZADO: BUSCAR POR producto_id ---
         let finalCaption = "";
         
         try {
             // Obtener el pool de conexiones solo cuando se necesita
             const dbPool = await getDbPool();
             
-            // 1. Buscamos el texto en la tabla
-            const [rows] = await dbPool.execute(
-                'SELECT content FROM whatsapp_templates WHERE name = ?',
-                ['product_details']
-            );
-
-            if (rows.length > 0) {
-                const templateText = rows[0].content;
-                const now = new Date();
-
-                // 2. Definimos las variables que el usuario puede usar en el panel admin
-                const variables = {
-                    productName: productName,
-                    description: description,
-                    email: email,
-                    phone: phone,
-                    fecha: now.toLocaleDateString('es-PE', { timeZone: 'America/Lima' }),
-                    hora: now.toLocaleTimeString('es-PE', { 
-                        timeZone: 'America/Lima', 
-                        hour: '2-digit', 
-                        minute: '2-digit' 
-                    })
-                };
-
-                // 3. Reemplazamos {{variable}} por el valor real
-                finalCaption = templateText.replace(/{{(\w+)}}/g, (match, key) => {
-                    return variables[key] || match;
-                });
-            } else {
-                // Si por alguna razón no hay nada en la DB, usar template por defecto
-                finalCaption = getProductDetailsTemplate({
+            // ✅ CAMBIO: Buscar por producto_id en lugar de name
+            let templateText = null;
+            
+            // Si tenemos productoId, buscar plantilla específica del producto
+            if (productoId) {
+                const [productRows] = await dbPool.execute(
+                    'SELECT content FROM whatsapp_templates WHERE producto_id = ?',
+                    [productoId]
+                );
+                
+                if (productRows.length > 0) {
+                    templateText = productRows[0].content;
+                    logger.info(`Usando plantilla personalizada para producto ID: ${productoId}`);
+                }
+            }
+            
+            // Si no hay plantilla personalizada, usar template por defecto
+            if (!templateText) {
+                templateText = getProductDetailsTemplate({
                     productName,
                     description,
                     phone,
                     email
                 });
+                logger.info('Usando plantilla por defecto (no hay plantilla personalizada)');
             }
+
+            // Definir variables disponibles para reemplazo
+            const now = new Date();
+            const variables = {
+                productName: productName,
+                description: description,
+                email: email,
+                phone: phone,
+                fecha: now.toLocaleDateString('es-PE', { timeZone: 'America/Lima' }),
+                hora: now.toLocaleTimeString('es-PE', { 
+                    timeZone: 'America/Lima', 
+                    hour: '2-digit', 
+                    minute: '2-digit' 
+                })
+            };
+
+            // Reemplazar variables {{variable}} por valores reales
+            finalCaption = templateText.replace(/{{(\w+)}}/g, (match, key) => {
+                return variables[key] || match;
+            });
+
         } catch (dbError) {
             // Si hay error con la DB, usar template por defecto como fallback
             logger.error('Error al obtener template de DB', { error: dbError.message });
@@ -250,7 +261,7 @@ export async function sendProductInfo(req, res) {
                 email
             });
         }
-        // --- FIN DEL BLOQUE NUEVO ---
+        // --- FIN DEL BLOQUE ACTUALIZADO ---
 
         // Enviar imagen con el caption dinámico
         const result = await whatsappService.sendImage(jid, imageBuffer, finalCaption);
