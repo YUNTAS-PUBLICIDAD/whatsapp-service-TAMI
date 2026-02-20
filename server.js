@@ -36,6 +36,8 @@ app.post('/api/whatsapp/send-product-info', sendImageLimiter, whatsappController
 // se reinicia la sesion de whatsapp
 app.post('/api/whatsapp/reset', generalLimiter, whatsappController.resetSession);
 
+// ruta dedicada para campañas desde Laravel
+app.post('/api/whatsapp/send-campaign', sendImageLimiter, whatsappController.sendCampaign);
 
 /********************* SOCKET.IO *********************/
 
