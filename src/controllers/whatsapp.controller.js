@@ -309,3 +309,81 @@ export async function resetSession(req, res) {
         }
     }
 }
+
+/**
+ * Envía campaña de WhatsApp (llamado desde Laravel)
+ */
+export async function sendCampaign(req, res) {
+    try {
+        if (!whatsappService.isReady) {
+            return res.status(400).json({
+                success: false,
+                message: 'WhatsApp no está conectado'
+            });
+        }
+
+        const { phone, message, image } = req.body;
+
+        // Validar campos requeridos
+        if (!phone || !message) {
+            return res.status(400).json({
+                success: false,
+                message: 'El teléfono y el mensaje son obligatorios'
+            });
+        }
+
+        // Limpiar número
+        const numberId = phone.replace(/\D/g, '');
+
+        if (numberId.length < 10 || numberId.length > 15) {
+            return res.status(400).json({
+                success: false,
+                message: 'El formato del número de teléfono no es válido'
+            });
+        }
+
+        // Validar número en WhatsApp
+        const jid = await whatsappService.validateNumber(`${numberId}@s.whatsapp.net`);
+        if (!jid) {
+            return res.status(404).json({
+                success: false,
+                message: 'El número no está registrado en WhatsApp'
+            });
+        }
+
+        let result;
+
+        // Si viene imagen, descargarla y enviar con caption
+        if (image) {
+            let imageBuffer;
+            try {
+                const response = await fetch(image);
+                if (!response.ok) throw new Error('No se pudo descargar la imagen');
+                imageBuffer = Buffer.from(await response.arrayBuffer());
+            } catch (error) {
+                logger.error('Error al descargar imagen de campaña', { error: error.message, image });
+                return res.status(400).json({
+                    success: false,
+                    message: 'No se pudo descargar la imagen desde la URL proporcionada'
+                });
+            }
+
+            result = await whatsappService.sendImage(jid, imageBuffer, message);
+        } else {
+            // Sin imagen, solo texto
+            result = await whatsappService.sendMessage(jid, message);
+        }
+
+        logger.info('Campaña enviada correctamente', { phone: numberId });
+
+        res.json(result);
+
+    } catch (error) {
+        logger.error('Error al enviar campaña de WhatsApp', { error: error.message });
+        res.status(500).json({
+            success: false,
+            message: 'Error desconocido al enviar la campaña'
+        });
+    }
+}
+
