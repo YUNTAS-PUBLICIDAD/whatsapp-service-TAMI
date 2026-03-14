@@ -1,24 +1,20 @@
 export function getProductDetailsTemplate(params = {}) {
-    const {
-        productName = '',
-        description = '',
-        email = '',
-    } = params;
+  const { productName = "", description = "", email = "" } = params;
 
-    const now = new Date();
+  const now = new Date();
 
-    const fecha = now.toLocaleDateString('es-PE', {
-        timeZone: 'America/Lima'
-    });
+  const fecha = now.toLocaleDateString("es-PE", {
+    timeZone: "America/Lima",
+  });
 
-    const hora = now.toLocaleTimeString('es-PE', {
-        timeZone: 'America/Lima',
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit'
-    });
+  const hora = now.toLocaleTimeString("es-PE", {
+    timeZone: "America/Lima",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  });
 
-    return `📢 Bienvenido a Tami Maquinarias 📢
+  return `📢 Bienvenido a Tami Maquinarias 📢
 
 Gracias por su interés en nuestros productos. A continuación, le proporcionamos los detalles del producto que ha consultado:
 
@@ -40,4 +36,31 @@ Si tiene alguna otra consulta o desea más información, no dude en contactarnos
 Atentamente,  
 Yuntas Publicidad  
 `;
+}
+export function getWelcomeTemplate(params = {}) {
+  const { name = "" } = params;
+
+  const now = new Date();
+  const fecha = now.toLocaleDateString("es-PE", {
+    timeZone: "America/Lima",
+  });
+  const hora = now.toLocaleTimeString("es-PE", {
+    timeZone: "America/Lima",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  });
+
+  return `👋 ¡Bienvenido/a a Tami Maquinarias${name ? ", " + name : ""}!
+
+Nos alegra que estés con nosotros. Somos una empresa dedicada a brindarte las mejores soluciones en maquinaria.
+
+📅 Fecha de registro: ${fecha}
+🕐 Hora: ${hora}
+
+Si tienes alguna consulta sobre nuestros productos o servicios, estamos aquí para ayudarte.
+
+¡Gracias por elegirnos! 🙌
+Atentamente,
+Tami Maquinarias`;
 }
