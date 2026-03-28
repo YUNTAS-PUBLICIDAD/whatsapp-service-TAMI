@@ -211,6 +211,30 @@ class WhatsAppService {
     }
 
     /**
+     * Envía un mensaje de texto
+     */
+    async sendMessage(jid, text) {
+        if (!this.isReady || !this.sock) {
+            throw new Error('WhatsApp no está conectado');
+        }
+
+        try {
+            const result = await this.sock.sendMessage(jid, { text });
+
+            logger.info('Mensaje de texto enviado', { jid });
+            return {
+                success: true,
+                messageId: result.key.id,
+                chatId: jid,
+                timestamp: result.messageTimestamp
+            };
+        } catch (error) {
+            logger.error('Error al enviar mensaje de texto', { error: error.message, jid });
+            throw error;
+        }
+    }
+
+    /**
      * Envía una imagen con caption (texto)
      */
     async sendImage(jid, imageBuffer, caption = '') {
