@@ -148,7 +148,11 @@ export async function sendProductInfo(req, res) {
                 if (!response.ok) {
                     throw new Error('No se pudo descargar la imagen');
                 }
+                const contentType = response.headers.get('content-type') || null;
                 imageBuffer = Buffer.from(await response.arrayBuffer());
+                logger.info('Imagen descargada desde URL', { url: imageData, contentType, size: imageBuffer.length });
+                // keep mimetype for sending
+                detectedMimetype = contentType;
             } catch (error) {
                 return res.status(400).json({
                     success: false,
@@ -157,7 +161,9 @@ export async function sendProductInfo(req, res) {
             }
         } else if (imageData.startsWith('data:image/')) {
             // Base64 con prefijo
+            const mimeMatch = imageData.match(/^data:(image\/(\w+));base64,/);
             const base64Data = imageData.replace(/^data:image\/\w+;base64,/, '');
+            detectedMimetype = mimeMatch ? mimeMatch[1] : null;
 
             if (!base64Data || base64Data.length === 0) {
                 return res.status(400).json({
@@ -176,6 +182,7 @@ export async function sendProductInfo(req, res) {
             }
 
             imageBuffer = Buffer.from(base64Data, 'base64');
+            logger.info('Imagen proveniente de base64 (con prefijo)', { mimetype: detectedMimetype, size: imageBuffer.length });
         } else {
             // Base64 puro
             const base64Regex = /^[A-Za-z0-9+/]+={0,2}$/;
@@ -195,6 +202,7 @@ export async function sendProductInfo(req, res) {
             }
 
             imageBuffer = Buffer.from(imageData, 'base64');
+            logger.info('Imagen proveniente de base64 (sin prefijo)', { size: imageBuffer.length });
         }
 
         // --- ✅ BLOQUE ACTUALIZADO: BUSCAR POR producto_id ---
@@ -264,7 +272,7 @@ export async function sendProductInfo(req, res) {
         // --- FIN DEL BLOQUE ACTUALIZADO ---
 
         // Enviar imagen con el caption dinámico
-        const result = await whatsappService.sendImage(jid, imageBuffer, finalCaption);
+        const result = await whatsappService.sendImage(jid, imageBuffer, finalCaption, detectedMimetype || null);
 
         res.json(result);
     } catch (error) {

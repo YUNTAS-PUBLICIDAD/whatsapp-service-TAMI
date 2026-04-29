@@ -247,7 +247,7 @@ class WhatsAppService {
     /**
      * Envía una imagen con caption (texto)
      */
-    async sendImage(jid, imageBuffer, caption = '') {
+    async sendImage(jid, imageBuffer, caption = '', mimetype = null) {
         if (!this.isReady || !this.sock) {
             throw new Error('WhatsApp no está conectado');
         }
@@ -257,6 +257,11 @@ class WhatsAppService {
                 image: imageBuffer,
                 caption: caption || undefined
             };
+
+            // If we detected a mimetype upstream, include it to help the transport
+            if (mimetype) {
+                message.mimetype = mimetype;
+            }
 
             const result = await this.sock.sendMessage(jid, message);
 
