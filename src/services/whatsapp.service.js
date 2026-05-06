@@ -17,6 +17,7 @@ class WhatsAppService {
         this.currentQR = null;
         this.isReady = false;
         this.isInitializing = false;
+        this.initializePromise = null;
         this.qrTimeout = null;
         this.eventEmitter = null;
     }
@@ -43,50 +44,59 @@ class WhatsAppService {
     async initialize() {
         if (this.sock) {
             logger.warn('Cliente de WhatsApp ya existe, cancelando inicialización');
-            return;
+            return this.sock;
         }
 
-        try {
-            this.isInitializing = true;
+        if (this.isInitializing && this.initializePromise) {
+            logger.warn('Inicialización de WhatsApp ya en curso, reutilizando promesa existente');
+            return this.initializePromise;
+        }
 
-            // se crea la carpeta de autenticacion si no existe
-            if (!fs.existsSync(WHATSAPP_CONFIG.authPath)) {
-                fs.mkdirSync(WHATSAPP_CONFIG.authPath, { recursive: true });
+        this.isInitializing = true;
+        this.initializePromise = (async () => {
+            try {
+                // se crea la carpeta de autenticacion si no existe
+                if (!fs.existsSync(WHATSAPP_CONFIG.authPath)) {
+                    fs.mkdirSync(WHATSAPP_CONFIG.authPath, { recursive: true });
+                }
+
+                const { state, saveCreds } = await useMultiFileAuthState(WHATSAPP_CONFIG.authPath);
+
+                const { version } = await fetchLatestBaileysVersion(); // version mas reciente
+
+                this.sock = makeWASocket({ // socket de WhatsApp
+                    version,
+                    logger: pino({ level: 'silent' }),
+                    printQRInTerminal: false,
+                    auth: {
+                        creds: state.creds,
+                        keys: makeCacheableSignalKeyStore(state.keys, pino({ level: 'silent' }))
+                    },
+                    browser: [WHATSAPP_CONFIG.sessionName, 'Chrome', '120.0.0'],
+                    generateHighQualityLinkPreview: true,
+                    syncFullHistory: false,
+                    markOnlineOnConnect: false
+                });
+
+                // se manejan las actualizaciones de conexión
+                this.sock.ev.on('connection.update', async (update) => {
+                    await this.handleConnectionUpdate(update);
+                });
+
+                // se guarda las credenciales cuando cambien
+                this.sock.ev.on('creds.update', saveCreds);
+
+                return this.sock;
+            } catch (error) {
+                logger.error('Error al inicializar WhatsApp', { error: error.message });
+                throw error;
+            } finally {
+                this.isInitializing = false;
+                this.initializePromise = null;
             }
+        })();
 
-            const { state, saveCreds } = await useMultiFileAuthState(WHATSAPP_CONFIG.authPath);
-
-            const { version } = await fetchLatestBaileysVersion(); // version mas reciente
-
-            this.sock = makeWASocket({ // socket de WhatsApp
-                version,
-                logger: pino({ level: 'silent' }),
-                printQRInTerminal: false,
-                auth: {
-                    creds: state.creds,
-                    keys: makeCacheableSignalKeyStore(state.keys, pino({ level: 'silent' }))
-                },
-                browser: [WHATSAPP_CONFIG.sessionName, 'Chrome', '120.0.0'],
-                generateHighQualityLinkPreview: true,
-                syncFullHistory: false,
-                markOnlineOnConnect: false
-            });
-
-            // se manejan las actualizaciones de conexión
-            this.sock.ev.on('connection.update', async (update) => {
-                await this.handleConnectionUpdate(update);
-            });
-
-            // se guarda las credenciales cuando cambien
-            this.sock.ev.on('creds.update', saveCreds);
-
-            this.isInitializing = false;
-
-        } catch (error) {
-            this.isInitializing = false;
-            logger.error('Error al inicializar WhatsApp', { error: error.message });
-            throw error;
-        }
+        return this.initializePromise;
     }
 
     /**
@@ -237,7 +247,7 @@ class WhatsAppService {
     /**
      * Envía una imagen con caption (texto)
      */
-    async sendImage(jid, imageBuffer, caption = '') {
+    async sendImage(jid, imageBuffer, caption = '', mimetype = null) {
         if (!this.isReady || !this.sock) {
             throw new Error('WhatsApp no está conectado');
         }
@@ -247,6 +257,11 @@ class WhatsAppService {
                 image: imageBuffer,
                 caption: caption || undefined
             };
+
+            // If we detected a mimetype upstream, include it to help the transport
+            if (mimetype) {
+                message.mimetype = mimetype;
+            }
 
             const result = await this.sock.sendMessage(jid, message);
 
@@ -334,6 +349,7 @@ class WhatsAppService {
         }
         this.isReady = false;
         this.currentQR = null;
+        this.initializePromise = null;
         clearTimeout(this.qrTimeout);
     }
 
