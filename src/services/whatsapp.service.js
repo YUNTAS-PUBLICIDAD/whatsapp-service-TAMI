@@ -253,19 +253,26 @@ class WhatsAppService {
         }
 
         try {
-            const message = {
-                image: imageBuffer,
-                caption: caption || undefined
-            };
+            let message = {};
+            const isGif = mimetype === 'image/gif';
 
-            // If we detected a mimetype upstream, include it to help the transport
-            if (mimetype) {
-                message.mimetype = mimetype;
+            if (isGif) {
+                // Para GIFs, usamos el formato de video con playback automático
+                message = {
+                    video: imageBuffer,
+                    caption: caption || undefined,
+                    gifPlayback: true
+                };
+            } else {
+                // Para imágenes normales, volvemos a lo simple que funcionaba
+                message = {
+                    image: imageBuffer,
+                    caption: caption || undefined
+                };
             }
 
             const result = await this.sock.sendMessage(jid, message);
-
-            logger.info('Mensaje enviado', { jid });
+            logger.info('Mensaje enviado con éxito', { jid, isGif });
             return {
                 success: true,
                 messageId: result.key.id,

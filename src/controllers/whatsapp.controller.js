@@ -319,6 +319,41 @@ export async function resetSession(req, res) {
 }
 
 /**
+ * Procesa una imagen (URL o Base64) y devuelve un Buffer y el Mimetype detectado
+ */
+async function processImage(imageSource) {
+    if (!imageSource) return { buffer: null, mimetype: null };
+
+    let imageBuffer;
+    let detectedMimetype = null;
+
+    if (imageSource.startsWith('http://') || imageSource.startsWith('https://')) {
+        try {
+            const response = await fetch(imageSource);
+            if (!response.ok) throw new Error('No se pudo descargar la imagen');
+            detectedMimetype = response.headers.get('content-type') || null;
+            imageBuffer = Buffer.from(await response.arrayBuffer());
+        } catch (error) {
+            logger.error('Error al descargar imagen', { error: error.message, url: imageSource });
+            return { buffer: null, mimetype: null };
+        }
+    } else if (imageSource.startsWith('data:')) {
+        // Método robusto para data URIs
+        const parts = imageSource.split(',');
+        if (parts.length === 2) {
+            const mimeMatch = parts[0].match(/data:([^;]+);/);
+            detectedMimetype = mimeMatch ? mimeMatch[1] : null;
+            imageBuffer = Buffer.from(parts[1], 'base64');
+        }
+    } else {
+        // Si viene base64 puro
+        imageBuffer = Buffer.from(imageSource, 'base64');
+    }
+
+    return { buffer: imageBuffer, mimetype: detectedMimetype };
+}
+
+/**
  * Envía campaña de WhatsApp (llamado desde Laravel)
  */
 export async function sendCampaign(req, res) {
@@ -330,67 +365,62 @@ export async function sendCampaign(req, res) {
             });
         }
 
-        const { phone, message, image } = req.body;
-
-        // Validar campos requeridos
-        if (!phone || !message) {
-            return res.status(400).json({
-                success: false,
-                message: 'El teléfono y el mensaje son obligatorios'
-            });
-        }
+        const { phone, message, image, messages } = req.body;
 
         // Limpiar número
-        const numberId = phone.replace(/\D/g, '');
-
+        const numberId = (phone || (messages && messages[0] && messages[0].phone) || '').replace(/\D/g, '');
         if (numberId.length < 10 || numberId.length > 15) {
-            return res.status(400).json({
-                success: false,
-                message: 'El formato del número de teléfono no es válido'
-            });
+            return res.status(400).json({ success: false, message: 'Número de teléfono no válido' });
         }
-
-        // Validar número en WhatsApp
         const jid = await whatsappService.validateNumber(`${numberId}@s.whatsapp.net`);
-        if (!jid) {
-            return res.status(404).json({
-                success: false,
-                message: 'El número no está registrado en WhatsApp'
-            });
-        }
+        if (!jid) return res.status(404).json({ success: false, message: 'Número no registrado' });
 
-        let result;
-
-        // Si viene imagen, descargarla y enviar con caption
-        if (image) {
-            let imageBuffer;
+        // Función interna para enviar un mensaje individual
+        const sendOne = async (msgText, msgImage) => {
             try {
-                const response = await fetch(image);
-                if (!response.ok) throw new Error('No se pudo descargar la imagen');
-                imageBuffer = Buffer.from(await response.arrayBuffer());
-            } catch (error) {
-                logger.error('Error al descargar imagen de campaña', { error: error.message, image });
-                return res.status(400).json({
-                    success: false,
-                    message: 'No se pudo descargar la imagen desde la URL proporcionada'
-                });
+                if (msgImage) {
+                    const { buffer, mimetype } = await processImage(msgImage);
+                    return await whatsappService.sendImage(jid, buffer, msgText, mimetype);
+                }
+                return await whatsappService.sendMessage(jid, msgText);
+            } catch (err) {
+                logger.error('Error enviando mensaje individual en campaña', { error: err.message });
+                throw err;
             }
+        };
 
-            result = await whatsappService.sendImage(jid, imageBuffer, message);
-        } else {
-            // Sin imagen, solo texto
-            result = await whatsappService.sendMessage(jid, message);
+        // Si viene un array de mensajes (Secuencia)
+        if (Array.isArray(messages) && messages.length > 0) {
+            // Enviamos respuesta inmediata para que Laravel no espere
+            res.json({ success: true, message: 'Secuencia de mensajes iniciada' });
+
+            let currentDelay = 0;
+            for (const msg of messages) {
+                currentDelay += (msg.delay || 0);
+                setTimeout(async () => {
+                    try {
+                        await sendOne(msg.message, msg.image);
+                        logger.info('Mensaje de secuencia enviado', { phone: numberId, delay: msg.delay });
+                    } catch (e) {
+                        logger.error('Fallo en mensaje de secuencia', { error: e.message });
+                    }
+                }, currentDelay * 60000); // convertir minutos a ms
+            }
+            return;
         }
 
-        logger.info('Campaña enviada correctamente', { phone: numberId });
-
+        // Si es un mensaje único (Tradicional)
+        if (!message) return res.status(400).json({ success: false, message: 'Mensaje obligatorio' });
+        
+        const result = await sendOne(message, image);
+        logger.info('Campaña única enviada correctamente', { phone: numberId });
         res.json(result);
 
     } catch (error) {
         logger.error('Error al enviar campaña de WhatsApp', { error: error.message });
         res.status(500).json({
             success: false,
-            message: 'Error desconocido al enviar la campaña'
+            message: 'Error al enviar la campaña: ' + error.message
         });
     }
 }
